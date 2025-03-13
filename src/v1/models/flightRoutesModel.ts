@@ -1,7 +1,8 @@
-import { responseUtil } from "../library/responseUtil";
+import { functions } from "../library/functions";
 import { appdb } from "./appdb";
 
-const responseObj = new responseUtil();
+
+const functionsObj = new functions();
 
 interface FlightRoute {
   flight_id: number;
@@ -29,70 +30,72 @@ export class flightRouteModel extends appdb {
 
   async addFlightRoute(routeData: FlightRoute): Promise<ServiceResponse> {
     try {
-      this.table = "flightroutes";
-      // Automatically calculate total_price
-      routeData.total_price = routeData.base_price + routeData.gst;
+        this.table = "flightroutes";
+        // Automatically calculate total_price
+        routeData.total_price = routeData.base_price + routeData.gst;
 
-      const result = await this.insertRecord(routeData);
-      return responseObj.returnResponse(false, "Flight route added successfully", result);
+        const result = await this.insertRecord(routeData);
+        return functionsObj.output(201, "Flight route added successfully", result);
     } catch (error) {
-      return responseObj.returnResponse(true, "Error adding flight route", null);
+        return functionsObj.output(500, "Error adding flight route", null);
     }
-  }
+}
 
-  async updateFlightRoute(id: number, routeData: Partial<FlightRoute>): Promise<ServiceResponse> {
+async updateFlightRoute(id: number, routeData: Partial<FlightRoute>): Promise<ServiceResponse> {
     try {
-      this.table = "flightroutes";
+        this.table = "flightroutes";
 
-      // If base_price or gst is updated, recalculate total_price
-      if (routeData.base_price !== undefined || routeData.gst !== undefined) {
-        const existingRoute = await this.selectRecord(id, "base_price, gst");
-        if (!existingRoute) {
-          return responseObj.returnResponse(true, "Flight route not found", null);
+        // If base_price or gst is updated, recalculate total_price
+        if (routeData.base_price !== undefined || routeData.gst !== undefined) {
+            const existingRoute = await this.selectRecord(id, "base_price, gst");
+
+            if (!existingRoute) {
+                return functionsObj.output(404, "Flight route not found", null);
+            }
+
+            routeData.total_price =
+                (routeData.base_price ?? existingRoute.base_price) +
+                (routeData.gst ?? existingRoute.gst);
         }
-        routeData.total_price =
-          (routeData.base_price ?? existingRoute.base_price) +
-          (routeData.gst ?? existingRoute.gst);
-      }
 
-      const result = await this.updateRecord(id, routeData);
-      if (!result) {
-        return responseObj.returnResponse(true, "Flight route not updated or not found", null);
-      }
+        const result = await this.updateRecord(id, routeData);
+        if (!result) {
+            return functionsObj.output(400, "Flight route not updated or not found", null);
+        }
 
-      return responseObj.returnResponse(false, "Flight route updated successfully", result);
+        return functionsObj.output(200, "Flight route updated successfully", result);
     } catch (error) {
-      return responseObj.returnResponse(true, "Error updating flight route", null);
+        return functionsObj.output(500, "Error updating flight route", null);
     }
-  }
+}
 
-  async deleteFlightRoute(id: number): Promise<ServiceResponse> {
+async deleteFlightRoute(id: number): Promise<ServiceResponse> {
     try {
-      this.table = "flightroutes";
-      const result = await this.deleteRecord(id);
+        this.table = "flightroutes";
+        const result = await this.deleteRecord(id);
 
-      if (!result) {
-        return responseObj.returnResponse(true, "Flight route not found or not deleted", null);
-      }
+        if (!result) {
+            return functionsObj.output(404, "Flight route not found or not deleted", null);
+        }
 
-      return responseObj.returnResponse(false, "Flight route deleted successfully", result);
+        return functionsObj.output(200, "Flight route deleted successfully", result);
     } catch (error) {
-      return responseObj.returnResponse(true, "Error deleting flight route", null);
+        return functionsObj.output(500, "Error deleting flight route", null);
     }
-  }
+}
 
-  async getRouteById(id: number) {
+async getRouteById(id: number): Promise<ServiceResponse> {
     try {
-      this.table = "flightroutes";
-      const route = await this.selectRecord(id, "*");
+        this.table = "flightroutes";
+        const route = await this.selectRecord(id, "*");
 
-      if (!route) {
-        return responseObj.returnResponse(true, "Flight route not found", null);
-      }
+        if (!route) {
+            return functionsObj.output(404, "Flight route not found", null);
+        }
 
-      return responseObj.returnResponse(false, "Flight route details fetched successfully", route);
+        return functionsObj.output(200, "Flight route details fetched successfully", route);
     } catch (error) {
-      return responseObj.returnResponse(true, "Error fetching flight route details", null);
+        return functionsObj.output(500, "Error fetching flight route details", null);
     }
   }
 }

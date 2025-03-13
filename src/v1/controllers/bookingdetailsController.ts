@@ -4,14 +4,11 @@ import { validations } from "../library/validations";
 import { functions } from "../library/functions";
 import { bookingModel } from "../models/bookingsModel";
 import { bookingDetailsModel } from "../models/bookingdetailsModel";
-import { responseUtil } from "../library/responseUtil";
 import { seatModel } from "../models/seatsModel";
 import { auth } from "../library/auth";
-import { validateRequest } from "../library/validateRequest";
 
 
 const router = express.Router();
-const responseObj = new responseUtil();
 const bookingModelInstance = new bookingModel();
 const bookingDetailsModelInstance = new bookingDetailsModel();
 const seatModelInstance = new seatModel();  
@@ -33,7 +30,21 @@ router.put("/modify/:booking_id",authObj.authenticateUser,modifyBookingValidatio
 export default router;
 
 
+function sanitizeInput(input: any) {
+  if (typeof input === "string") {
+    return input.trim().replace(/'/g, "");
+  } else if (Array.isArray(input)) {
+    return input.map((item) => (typeof item === "string" ? item.trim().replace(/'/g, "") : item));
+  } else if (typeof input === "object" && input !== null) {
+    Object.keys(input).forEach((key) => {
+      input[key] = sanitizeInput(input[key]);
+    });
+  }
+  return input;
+}
 function modifyBookingValidation(req: any, res: any, next: any) {
+  req.body = sanitizeInput(req.body);
+
   let schema = Joi.object({
     booking_id: Joi.number().integer().required().messages({
       "number.base": "Booking ID must be a number",
@@ -43,10 +54,10 @@ function modifyBookingValidation(req: any, res: any, next: any) {
       .items(
         Joi.object({
           seat_id: Joi.number().integer().required(),
-          passenger_name: Joi.string().min(2).max(50).required(),
+          passenger_name: Joi.string().trim().min(2).max(50).required(),
           age: Joi.number().integer().min(1).max(120).required(),
-          gender: Joi.string().valid("Male", "Female", "Other").required(),
-          relation: Joi.string().min(2).max(50).optional(),
+          gender: Joi.string().trim().valid("Male", "Female", "Other").required(),
+          relation: Joi.string().trim().min(2).max(50).optional(),
         })
       )
       .optional(),
@@ -58,61 +69,52 @@ function modifyBookingValidation(req: any, res: any, next: any) {
   }
 }
 
-
-export async function getUserBookings(req: AuthRequest, res: Response){
-  const userId = req.user?.user_id; 
-
-  if (!userId) {
-    return;
-  }
-
+export async function getUserBookings(req: AuthRequest, res: Response) {
   try {
-    const bookings = await bookingModelInstance.getUserBookings(userId);
-    return ;
+      const userId = req.user?.user_id;
+      if (!userId) {
+          res.status(400).send(functionsObj.output(0, "User ID is missing.", null));
+          return;
+      }
+      const bookings = await bookingModelInstance.getUserBookings(userId);
+      res.status(200).send(functionsObj.output(1, "User bookings fetched successfully.", bookings));
   } catch (error) {
-    console.error("Error fetching user bookings:", error);
-    return ;
+    res.status(500).send(functionsObj.output(0, "Error fetching user bookings.", null));
   }
-};
+}
 
-export async function modifyUserBooking(req: AuthRequest, res: Response){
-  const userId = req.user?.user_id;
-  const { booking_id } = req.params;
-  const { passengerDetails, newSeats } = req.body;
-
-  if (!userId) {
-    return;
-  }
-
+export async function modifyUserBooking(req: AuthRequest, res: Response) {
   try {
-    // Check if booking exists and belongs to the user
-    const bookingExists = await bookingModelInstance.getBookingById(Number(booking_id));
-    if (bookingExists.error || bookingExists.data.user_id !== userId) {
-      return ;
-    }
-
-    // Update passenger details if provided
-    if (passengerDetails && passengerDetails.length > 0) {
-      await bookingModelInstance.getBookingById(Number(booking_id));
-    }
-
-    // Check if new seats are available before updating
-    if (newSeats && newSeats.length > 0) {
-      const availableSeats = await seatModelInstance.getAvailableSeatsByFlight(newSeats);
-      if (availableSeats.data > 0) {
-        return ;
+      const userId = req.user?.user_id;
+      const { booking_id } = req.params;
+      const { passengerDetails, newSeats } = req.body;
+      
+      if (!userId) {
+          res.status(400).send(functionsObj.output(0, "User ID is missing.", null));
+          return;
       }
 
-      // Proceed with seat update
-      await seatModelInstance.getAvailableSeatsByFlight(Number(booking_id));
-    }
+      const bookingExists = await bookingModelInstance.getBookingById(Number(booking_id));
+      if (bookingExists.error || bookingExists.data.user_id !== userId) {
+          res.status(403).send(functionsObj.output(0, "Unauthorized or booking not found.", null));
+          return;
+      }
 
-    return;
+      if (passengerDetails && passengerDetails.length > 0) {
+          await bookingDetailsModelInstance.updateBookingDetail(Number(booking_id), passengerDetails);
+      }
+
+      if (newSeats && newSeats.length > 0) {
+          const availableSeats = await seatModelInstance.getAvailableSeatsByFlight(Number(bookingExists.data.flight_id));
+          if (availableSeats.data.length < newSeats.length) {
+              res.status(400).send(functionsObj.output(0, "Not enough available seats.", null));
+              return;
+          }
+          await seatModelInstance.updateSeat(Number(booking_id), newSeats);
+      }
+      res.status(200).send(functionsObj.output(1, "Booking modified successfully.", null));
   } catch (error) {
-    console.error("Error modifying booking:", error);
-    // return res.json(responseObj.returnResponse(true, "Error modifying booking", null));
-    return;
+    res.status(500).send(functionsObj.output(0, "Error modifying booking.", null));
   }
-};
-
+}
 

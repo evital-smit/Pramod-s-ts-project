@@ -1,8 +1,8 @@
 import moment from 'moment';
-import { responseUtil } from "../library/responseUtil";
 import { appdb } from "./appdb";
+import { functions } from '../library/functions';
 
-const responseObj = new responseUtil();
+const functionsObj = new functions();
 
 interface Flight {
   airline: string;
@@ -36,44 +36,49 @@ export class flightModel extends appdb {
 
   async addFlight(flightData: Flight): Promise<ServiceResponse> {
     try {
-      this.table = "flights";
-      const result = await this.insertRecord(flightData);
-      return responseObj.returnResponse(false, "Flight added successfully", result);
-    } catch (error) {
-      return responseObj.returnResponse(true, "Error adding flight", null);
-    }
-  }
+        this.table = "flights";
+        const result = await this.insertRecord(flightData);
 
-  async addFlightRoute(routeData: FlightRoute): Promise<ServiceResponse> {
+        return functionsObj.output(201, "Flight added successfully", result);
+    } catch (error) {
+        return functionsObj.output(500, "Error adding flight", null);
+    }
+}
+
+async addFlightRoute(routeData: FlightRoute): Promise<ServiceResponse> {
     try {
-      this.table = "flightroutes";
-      const result = await this.insertRecord(routeData);
-      return responseObj.returnResponse(false, "Flight route added successfully", result);
-    } catch (error) {
-      return responseObj.returnResponse(true, "Error adding flight route", null);
-    }
-  }
+        this.table = "flightroutes";
+        const result = await this.insertRecord(routeData);
 
-  async searchFlights(departure_city: string, arrival_city: string, date: string): Promise<ServiceResponse> {
+        return functionsObj.output(201, "Flight route added successfully", result);
+    } catch (error) {
+        return functionsObj.output(500, "Error adding flight route", null);
+    }
+}
+
+async searchFlights(departure_city: string, arrival_city: string, date: string): Promise<ServiceResponse> {
     try {
         this.table = "flightroutes";
         this.where = `WHERE departure_city = '${departure_city}' 
                       AND arrival_city = '${arrival_city}' 
                       AND DATE(departure_time) = '${date}'`;
-        
-        const flights = await this.listRecords("id AS flight_id, departure_city, arrival_city, departure_time, arrival_time, base_price, gst, total_price");
+
+        const flights = await this.listRecords(
+            "id AS flight_id, departure_city, arrival_city, departure_time, arrival_time, base_price, gst, total_price"
+        );
 
         if (flights.length === 0) {
-            return responseObj.returnResponse(true, "No flights found for the given criteria", null);
+            return functionsObj.output(404, "No flights found for the given criteria", null);
         }
-        return responseObj.returnResponse(false, "Flights fetched successfully", flights);
+
+        return functionsObj.output(200, "Flights fetched successfully", flights);
     } catch (error) {
         console.log(error);
-        return responseObj.returnResponse(true, "Error searching flights", null);
+        return functionsObj.output(500, "Error searching flights", null);
     }
-  }
+}
 
-  async filterFlights(priceRange?: [number, number], airlines?: string[], timeRange?: [string, string]): Promise<ServiceResponse> {
+async filterFlights(priceRange?: [number, number], airlines?: string[], timeRange?: [string, string]): Promise<ServiceResponse> {
     try {
         this.table = "flights";
         let conditions: string[] = [];
@@ -90,91 +95,94 @@ export class flightModel extends appdb {
 
         this.where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
-        const flights = await this.listRecords("id AS flight_id, departure_city, arrival_city, departure_time, arrival_time, base_price, gst, total_price");
+        const flights = await this.listRecords(
+            "id AS flight_id, departure_city, arrival_city, departure_time, arrival_time, base_price, gst, total_price"
+        );
 
         if (!flights.length) {
-            return responseObj.returnResponse(true, "No flights found based on the filter criteria", null);
+            return functionsObj.output(404, "No flights found based on the filter criteria", null);
         }
 
-        return responseObj.returnResponse(false, "Filtered flights fetched successfully", flights);
+        return functionsObj.output(200, "Filtered flights fetched successfully", flights);
     } catch (error) {
-        return responseObj.returnResponse(true, "Error filtering flights", null);
+        return functionsObj.output(500, "Error filtering flights", null);
     }
-  }
+}
 
-  async getFlightById(id: number): Promise<ServiceResponse> {
+async getFlightById(id: number): Promise<ServiceResponse> {
     try {
-            this.table = "flights";
-            const flight = await this.selectRecord(id, "*"); 
+        this.table = "flights";
+        const flight = await this.selectRecord(id, "*");
 
-            if (!flight) {
-                return responseObj.returnResponse(true, "Flight not found", null);
+        if (!flight) {
+            return functionsObj.output(404, "Flight not found", null);
         }
-            return responseObj.returnResponse(false, "Flight details fetched successfully", flight);
-    } catch (error) {
-        return responseObj.returnResponse(true, "Error fetching flight details", null);
-    }
-  }
 
-  async getAvailableSeats(flight_id: number): Promise<ServiceResponse> {
+        return functionsObj.output(200, "Flight details fetched successfully", flight);
+    } catch (error) {
+        return functionsObj.output(500, "Error fetching flight details", null);
+    }
+}
+
+async getAvailableSeats(flight_id: number): Promise<ServiceResponse> {
     try {
         this.table = "seats";
         this.where = `WHERE flight_id = ${flight_id} AND is_booked = false`;
 
-        const seats = await this.listRecords("id AS seat_id, seat_number"); 
+        const seats = await this.listRecords("id AS seat_id, seat_number");
 
         if (!seats.length) {
-            return responseObj.returnResponse(true, "No available seats for this flight", null);
+            return functionsObj.output(404, "No available seats for this flight", null);
         }
 
-        return responseObj.returnResponse(false, "Available seats fetched successfully", seats);
+        return functionsObj.output(200, "Available seats fetched successfully", seats);
     } catch (error) {
-        return responseObj.returnResponse(true, "Error fetching available seats", null);
+        return functionsObj.output(500, "Error fetching available seats", null);
     }
-  }
+}
 
-  async listAllFlights(): Promise<ServiceResponse> {
+async listAllFlights(): Promise<ServiceResponse> {
     try {
         this.table = "flights";
         const flights = await this.listRecords("id AS flight_id, airline, flight_number, total_seats");
 
         if (!flights.length) {
-            return responseObj.returnResponse(true, "No flights available", null);
+            return functionsObj.output(404, "No flights available", null);
         }
 
-        return responseObj.returnResponse(false, "All flights fetched successfully", flights);
+        return functionsObj.output(200, "All flights fetched successfully", flights);
     } catch (error) {
-        return responseObj.returnResponse(true, "Error fetching flights", null);
+        return functionsObj.output(500, "Error fetching flights", null);
     }
-  }
+}
 
-  async updateFlight(id: number, flightData: Partial<Flight>): Promise<ServiceResponse> {
+async updateFlight(id: number, flightData: Partial<Flight>): Promise<ServiceResponse> {
     try {
         this.table = "flights";
-        const result = await this.updateRecord(id, flightData); 
+        const result = await this.updateRecord(id, flightData);
 
         if (!result) {
-            return responseObj.returnResponse(true, "Flight not found or not updated", null);
+            return functionsObj.output(400, "Flight not found or not updated", null);
         }
 
-        return responseObj.returnResponse(false, "Flight updated successfully", result);
+        return functionsObj.output(200, "Flight updated successfully", result);
     } catch (error) {
-        return responseObj.returnResponse(true, "Error updating flight", null);
+        return functionsObj.output(500, "Error updating flight", null);
     }
-  }
+}
 
-  async deleteFlight(id: number): Promise<ServiceResponse> {
+async deleteFlight(id: number): Promise<ServiceResponse> {
     try {
         this.table = "flights";
-        const result = await this.deleteRecord(id); 
+        const result = await this.deleteRecord(id);
 
         if (!result) {
-            return responseObj.returnResponse(true, "Flight not found or not deleted", null);
+            return functionsObj.output(404, "Flight not found or not deleted", null);
         }
 
-        return responseObj.returnResponse(false, "Flight deleted successfully", result);
+        return functionsObj.output(200, "Flight deleted successfully", result);
     } catch (error) {
-        return responseObj.returnResponse(true, "Error deleting flight", null);
+        return functionsObj.output(500, "Error deleting flight", null);
     }
   }
 }

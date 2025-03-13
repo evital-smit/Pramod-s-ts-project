@@ -48,6 +48,8 @@ export class functions {
         return {
             status_code: status_code.toString(),
             status_message: status_message,
+            error: status_code >= 400,
+            message: status_message,
             datetime: new Date(),
             data: data
         };

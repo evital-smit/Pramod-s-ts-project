@@ -20,7 +20,22 @@ router.put("/update/:seat_id", authObj.authenticateUser, seatSchema, updateSeat)
 
 export default router;
 
-export function seatSchema(req: any, res: any, next: any) {
+function sanitizeInput(req: any) {
+  Object.keys(req.body).forEach((key) => {
+    if (typeof req.body[key] === "string") {
+      req.body[key] = req.body[key].trim().replace(/'/g, "");
+    }
+    if (Array.isArray(req.body[key])) {
+      req.body[key] = req.body[key].map((item) =>
+        typeof item === "string" ? item.trim().replace(/'/g, "") : item
+      );
+    }
+  });
+}
+
+function seatSchema(req: any, res: any, next: any) {
+  sanitizeInput(req); 
+
   let schema = Joi.object({
     flight_id: Joi.number().integer().positive().required().messages({
       "number.base": "Flight ID must be a number",
@@ -48,10 +63,13 @@ export function seatSchema(req: any, res: any, next: any) {
   if (!validationsObj.validateRequest(req, res, next, schema)) {
     return;
   }
+  
+  next();
 }
 
-// Validation middleware for seat class
-export function seatClassSchema(req: any, res: any, next: any) {
+function seatClassSchema(req: any, res: any, next: any) {
+  sanitizeInput(req); 
+
   let schema = Joi.object({
     class_name: Joi.string().trim().min(2).max(50).required().messages({
       "string.base": "Class Name must be a string",
@@ -70,10 +88,13 @@ export function seatClassSchema(req: any, res: any, next: any) {
   if (!validationsObj.validateRequest(req, res, next, schema)) {
     return;
   }
+
+  next();
 }
 
-// Validation middleware for seat booking
-export function seatBookingSchema(req: any, res: any, next: any) {
+ function seatBookingSchema(req: any, res: any, next: any) {
+  sanitizeInput(req); 
+
   let schema = Joi.object({
     flight_id: Joi.number().integer().required().messages({
       "number.base": "Flight ID must be a number",
@@ -95,68 +116,81 @@ export function seatBookingSchema(req: any, res: any, next: any) {
   if (!validationsObj.validateRequest(req, res, next, schema)) {
     return;
   }
+
+  next();
 }
 
 export async function getAvailableSeats(req: Request, res: Response) {
-  let { flight_id } = req.params;
-  let result = await seatModelInstance.getAvailableSeatsByFlight(Number(flight_id));
+  try {
+    let { flight_id } = req.params;
+    let result = await seatModelInstance.getAvailableSeatsByFlight(Number(flight_id));
 
-  if (result.error) {
-    res.send(functionsObj.output(0, result.message, null));
-    return;
+    if (result.error) {
+     res.send(functionsObj.output(0, result.message, null));
+     return;
+    }
+    res.send(functionsObj.output(1, result.message, result.data));
+  } catch (error) {
+    res.status(500).send(functionsObj.output(0, "Internal Server Error", null));
   }
-  res.send(functionsObj.output(1, result.message, result.data));
-  return;
 }
 
-// Controller to book seats
 export async function bookSeats(req: Request, res: Response) {
-  let { flight_id, booking_id, seat_numbers } = req.body;
-  let result = await seatModelInstance.bookSelectedSeats(flight_id, booking_id, seat_numbers);
+  try {
+    let { flight_id, booking_id, seat_numbers } = req.body;
+    let result = await seatModelInstance.bookSelectedSeats(flight_id, booking_id, seat_numbers);
 
-  if (result.error) {
-    res.send(functionsObj.output(0, result.message, null));
-    return;
+    if (result.error) {
+      res.send(functionsObj.output(0, result.message, null));
+      return;
+    }
+    res.send(functionsObj.output(1, result.message, result.data));
+  } catch (error) {
+    res.status(500).send(functionsObj.output(0, "Internal Server Error", null));
   }
-  res.send(functionsObj.output(1, result.message, result.data));
-  return;
 }
 
-// Controller to cancel booked seats
 export async function cancelSeats(req: Request, res: Response) {
-  let { booking_id, seat_numbers } = req.body;
-  let result = await seatModelInstance.cancelBookedSeats(booking_id, seat_numbers);
+  try {
+    let { booking_id, seat_numbers } = req.body;
+    let result = await seatModelInstance.cancelBookedSeats(booking_id, seat_numbers);
 
-  if (result.error) {
-  res.send(functionsObj.output(0, result.message, null));
-  return;
+    if (result.error) {
+      res.send(functionsObj.output(0, result.message, null));
+      return;
+    }
+    res.send(functionsObj.output(1, result.message, result.data));
+  } catch (error) {
+    res.status(500).send(functionsObj.output(0, "Internal Server Error", null));
   }
-  res.send(functionsObj.output(1, result.message, result.data));
-  return;
 }
 
-// Controller to add a new seat
 export async function addSeat(req: Request, res: Response) {
-  let { flight_id, booking_id, seat_number} = req.body; 
-  let result = await seatModelInstance.bookNewSeats(Number(flight_id), Number(booking_id), [seat_number]);
-  if (result.error) {
-    res.send(functionsObj.output(0, result.message, null));
-    return;
+  try {
+    let { flight_id, booking_id, seat_number} = req.body; 
+    let result = await seatModelInstance.bookNewSeats(Number(flight_id), Number(booking_id), [seat_number]);
+    
+    if (result.error) {
+      res.send(functionsObj.output(0, result.message, null));
+      return;
+    }
+    res.send(functionsObj.output(1, result.message, result.data));
+  } catch (error) {
+    res.status(500).send(functionsObj.output(0, "Internal Server Error", null));
   }
-  res.send(functionsObj.output(1, result.message, result.data));
-  return;
 }
 
-// Controller to update seat details
 export async function updateSeat(req: Request, res: Response) {
-  let { seat_id } = req.params;
-  let result = await seatModelInstance.updateSeat(Number(seat_id), req.body);
+  try {
+    let { seat_id } = req.params;
+    let result = await seatModelInstance.updateSeat(Number(seat_id), req.body);
 
-  if (result.error) {
-    res.send(functionsObj.output(0, result.message, null));
-    return;
+    if (result.error) {
+      res.send(functionsObj.output(0, result.message, null));
+      return;
+    }
+    res.send(functionsObj.output(1, result.message, result.data));
+  } catch (error) {
+    res.status(500).send(functionsObj.output(0, "Internal Server Error", null));
   }
-  res.send(functionsObj.output(1, result.message, result.data));
-  return;
 }
-

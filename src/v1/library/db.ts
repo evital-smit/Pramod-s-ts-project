@@ -17,34 +17,33 @@ export class db {
 
 	}
 
-    async executeQuery(query: string){
-        this.query = query;
+    async executeQuery(query: string, params: any[] = []) {
+		this.query = query;
 		let connectionObj = new connection();
-
-
-        try {
+	
+		try {
 			this.connection = await connectionObj.getConnection();
 			if (!this.connection) {
 				throw 'Not connected to database.';
 			}
-			// console.log(query)
-			let result = await this.connection.query(query);
+	
+			let result = await this.connection.query(query, params); // Pass parameters
+	
 			if (!result) return false;
-
+	
 			if (result.command == "INSERT") {
-				if (this.uniqueField != '') return result['rows'][0];
-				else return result['rowCount'];
+				return this.uniqueField != '' ? result['rows'][0] : result['rowCount'];
+			} else if (["UPDATE", "REPLACE", "DELETE"].includes(result.command)) {
+				return result['rowCount'];
+			} else {
+				return result.rows;
 			}
-			else if (result.command == "UPDATE") return result['rowCount'];
-			else if (result.command == "REPLACE") return result['rowCount'];
-			else if (result.command == "DELETE") return result['rowCount'];
-			else return result.rows;
-
 		} catch (error) {
 			console.error(error);
 			return false;
 		}
-    }
+	}
+	
 
     select(table: string, fields: string, where: string, orderby: string, limit: string) {
 		let query = 'SELECT ' + fields + ' FROM ' + table + ' ' + where + ' ' + orderby + ' '+ limit;

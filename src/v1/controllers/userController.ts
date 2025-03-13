@@ -1,7 +1,6 @@
 import express from "express";
 import Joi from "joi";
 import { functions } from "../library/functions";
-import { validateParams, validateRequest } from "../library/validateRequest";
 import { userModel } from "../models/userModel";
 import { auth } from "../library/auth";
 import { validations } from "../library/validations";
@@ -20,45 +19,63 @@ router.put("/update",authObj.authenticateUser,updateUserSchema,updateUserHandler
 
 export default router;
 
-function registerSchema(req: any, res: any, next: any ){
+function sanitizeInput(req: any) {
+  Object.keys(req.body).forEach((key) => {
+    if (typeof req.body[key] === "string") {
+      req.body[key] = req.body[key].trim().replace(/'/g, "");
+    }
+  });
+}
+
+function registerSchema(req: any, res: any, next: any) {
+  sanitizeInput(req); 
+
   let schema = Joi.object({
-    name: Joi.string().required().min(2).max(50),
+    name: Joi.string().trim().required().min(2).max(50),
     age: Joi.number().integer().min(1).max(120).required(),
-    gender: Joi.string().valid("Male", "Female", "Other").required(),
-    email: Joi.string().required().email(),
-    password: Joi.string()
+    gender: Joi.string().trim().valid("Male", "Female", "Other").required(),
+    email: Joi.string().trim().required().email(),
+    password: Joi.string().trim()
       .required()
       .min(6)
       .pattern(new RegExp("^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])")),
-    phone: Joi.string().pattern(new RegExp("^[0-9]{10}$")).required(),
-  });
-
-  if (!validationsObj.validateRequest(req, res, next, schema)) {
-    return ;
-  }
-}
-
-function loginSchema(req: any, res: any, next: any) {
-  let schema = Joi.object({
-    email: Joi.string().required().email(),
-    password: Joi.string().required(),
+    phone: Joi.string().trim().pattern(new RegExp("^[0-9]{10}$")).required(),
   });
 
   if (!validationsObj.validateRequest(req, res, next, schema)) {
     return;
   }
+
+  next();
+}
+
+function loginSchema(req: any, res: any, next: any) {
+  sanitizeInput(req); 
+
+  let schema = Joi.object({
+    email: Joi.string().trim().required().email(),
+    password: Joi.string().trim().required(),
+  });
+
+  if (!validationsObj.validateRequest(req, res, next, schema)) {
+    return;
+  }
+
+  next();
 }
 
 function updateUserSchema(req: any, res: any, next: any) {
+  sanitizeInput(req); 
+
   let schema = Joi.object({
-    name: Joi.string().min(2).max(50),
+    name: Joi.string().trim().min(2).max(50),
     age: Joi.number().integer().min(1).max(120),
-    gender: Joi.string().valid("Male", "Female", "Other"),
-    email: Joi.string().email(),
-    password: Joi.string()
+    gender: Joi.string().trim().valid("Male", "Female", "Other"),
+    email: Joi.string().trim().email(),
+    password: Joi.string().trim()
       .min(6)
       .pattern(new RegExp("^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])")),
-    phone: Joi.string().pattern(new RegExp("^[0-9]{10}$")),
+    phone: Joi.string().trim().pattern(new RegExp("^[0-9]{10}$")),
   });
 
   const { error } = schema.validate(req.body);
@@ -69,8 +86,10 @@ function updateUserSchema(req: any, res: any, next: any) {
       message: error.details[0].message,
     });
   }
+
   next();
 }
+
 
 async function registerUser(req: any, res: any) {
   let result: any = await userObj.registerUserService(req.body);

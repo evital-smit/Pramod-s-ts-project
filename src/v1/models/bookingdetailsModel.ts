@@ -1,7 +1,7 @@
-import { responseUtil } from "../library/responseUtil";
+import { functions } from "../library/functions";
 import { appdb } from "./appdb";
 
-const responseObj = new responseUtil();
+const functionsObj = new functions();
 
 interface BookingDetail {
   id?: number;
@@ -27,80 +27,80 @@ export class bookingDetailsModel extends appdb {
     this.uniqueField = "id";
   }
 
-  // Add a new booking detail
-  async addBookingDetail(bookingDetailData: BookingDetail): Promise<ServiceResponse> {
-    try {
+  
+async addBookingDetail(bookingDetailData: BookingDetail): Promise<ServiceResponse> {
+  try {
       this.table = "bookingdetails";
       const result = await this.insertRecord(bookingDetailData);
-      return responseObj.returnResponse(false, "Booking detail added successfully", result);
-    } catch (error) {
-      return responseObj.returnResponse(true, "Error adding booking detail", null);
-    }
+      return functionsObj.output(201, "Booking detail added successfully", result);
+  } catch (error) {
+      return functionsObj.output(500, "Error adding booking detail", null);
   }
+}
 
-  // Update booking detail
-  async updateBookingDetail(id: number, bookingDetailData: Partial<BookingDetail>): Promise<ServiceResponse> {
-    try {
+
+async updateBookingDetail(id: number, bookingDetailData: Partial<BookingDetail>): Promise<ServiceResponse> {
+  try {
       this.table = "bookingdetails";
       const result = await this.updateRecord(id, bookingDetailData);
 
       if (!result) {
-        return responseObj.returnResponse(true, "Booking detail not updated or not found", null);
+          return functionsObj.output(400, "Booking detail not updated or not found", null);
       }
 
-      return responseObj.returnResponse(false, "Booking detail updated successfully", result);
-    } catch (error) {
-      return responseObj.returnResponse(true, "Error updating booking detail", null);
-    }
+      return functionsObj.output(200, "Booking detail updated successfully", result);
+  } catch (error) {
+      return functionsObj.output(500, "Error updating booking detail", null);
   }
+}
 
-  // Delete a booking detail
-  async deleteBookingDetail(id: number): Promise<ServiceResponse> {
-    try {
+
+async deleteBookingDetail(id: number): Promise<ServiceResponse> {
+  try {
       this.table = "bookingdetails";
       const result = await this.deleteRecord(id);
 
       if (!result) {
-        return responseObj.returnResponse(true, "Booking detail not found or not deleted", null);
+          return functionsObj.output(404, "Booking detail not found or not deleted", null);
       }
 
-      return responseObj.returnResponse(false, "Booking detail deleted successfully", result);
-    } catch (error) {
-      return responseObj.returnResponse(true, "Error deleting booking detail", null);
-    }
+      return functionsObj.output(200, "Booking detail deleted successfully", result);
+  } catch (error) {
+      return functionsObj.output(500, "Error deleting booking detail", null);
   }
+}
 
-  // Get booking detail by ID
-  async getBookingDetailById(id: number): Promise<ServiceResponse> {
-    try {
+
+async getBookingDetailById(id: number): Promise<ServiceResponse> {
+  try {
       this.table = "bookingdetails";
       const detail = await this.selectRecord(id, "*");
 
       if (!detail) {
-        return responseObj.returnResponse(true, "Booking detail not found", null);
+          return functionsObj.output(404, "Booking detail not found", null);
       }
 
-      return responseObj.returnResponse(false, "Booking detail fetched successfully", detail);
-    } catch (error) {
-      return responseObj.returnResponse(true, "Error fetching booking detail", null);
-    }
+      return functionsObj.output(200, "Booking detail fetched successfully", detail);
+  } catch (error) {
+      return functionsObj.output(500, "Error fetching booking detail", null);
   }
+}
 
-  // Get all booking details for a booking
-  async getDetailsByBooking(booking_id: number): Promise<ServiceResponse> {
-    try {
+
+async getDetailsByBooking(booking_id: number): Promise<ServiceResponse> {
+  try {
       this.table = "bookingdetails";
-      this.where = `WHERE booking_id = ${booking_id}`;
+      this.where = `WHERE booking_id = $1`;
       
       const details = await this.allRecords("*");
 
       if (!details || details.length === 0) {
-        return responseObj.returnResponse(true, "No booking details found for this booking", null);
+          return functionsObj.output(404, "No booking details found for this booking", null);
       }
 
-      return responseObj.returnResponse(false, "Booking details fetched successfully", details);
-    } catch (error) {
-      return responseObj.returnResponse(true, "Error fetching booking details", null);
-    }
+      return functionsObj.output(200, "Booking details fetched successfully", details);
+  } catch (error) {
+      return functionsObj.output(500, "Error fetching booking details", null);
   }
+}
 }
